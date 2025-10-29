@@ -1,0 +1,5 @@
+{
+  "name": "Daily Timeline Planner",
+  "description": "An intuitive daily schedule management app with a vertical timeline view to help users easily check and manage their tasks for the day.",
+  "requestFramePermissions": []
+}
