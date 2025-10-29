@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Task, TaskCategory, TaskStatus } from '../types';
 
 interface TaskItemProps {
   task: Task;
   onToggleStatus: (id: number) => void;
+  onEdit: (task: Task) => void;
   isActive: boolean;
   elapsedTimeDisplay: string;
 }
@@ -29,7 +29,7 @@ const categoryStyles: { [key in TaskCategory]: { bg: string; icon: React.ReactEl
   },
 };
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, isActive, elapsedTimeDisplay }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, onEdit, isActive, elapsedTimeDisplay }) => {
   const isCompleted = task.status === TaskStatus.Completed;
 
   return (
@@ -55,6 +55,17 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, isActive, ela
             </div>
         </div>
       </div>
+
+      <button
+        onClick={() => onEdit(task)}
+        title="일정 수정하기"
+        className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors duration-200"
+        aria-label={`Edit task: ${task.title}`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" />
+        </svg>
+      </button>
 
       <button
         onClick={() => onToggleStatus(task.id)}

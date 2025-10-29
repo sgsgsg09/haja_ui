@@ -1,8 +1,8 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Task, TaskStatus, TaskCategory } from './types';
 import { INITIAL_TASKS } from './constants';
 import TaskItem from './components/TaskItem';
+import EditTaskModal from './components/EditTaskModal';
 
 const Header: React.FC = () => {
   const today = new Date();
@@ -38,6 +38,7 @@ const App: React.FC = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [filter, setFilter] = useState<TaskCategory | 'ALL'>('ALL');
   const [sortBy, setSortBy] = useState<'startTime' | 'duration'>('startTime');
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const activeTask = useMemo(() => tasks.find(task => task.status === TaskStatus.Pending), [tasks]);
   
@@ -81,10 +82,26 @@ const App: React.FC = () => {
     setFilter('ALL');
   }, [tasks]);
 
+  const handleStartEdit = useCallback((task: Task) => {
+    setEditingTask(task);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setEditingTask(null);
+  }, []);
+
+  const handleUpdateTask = useCallback((updatedTask: Task) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task => (task.id === updatedTask.id ? updatedTask : task))
+    );
+    setEditingTask(null);
+  }, []);
+
   const displayedTasks = useMemo(() => {
     const parseTime = (timeStr: string): number => {
       if (timeStr === '시간 미정') return Infinity;
       const [period, time] = timeStr.split(' ');
+      if (!time) return Infinity;
       const [hours, minutes] = time.split(':').map(Number);
       let totalMinutes = hours * 60 + minutes;
       if (period === '오후' && hours < 12) {
@@ -133,34 +150,51 @@ const App: React.FC = () => {
       <div className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 sm:p-8 relative">
         <Header />
 
-        <div className="mb-4">
-          <div className="flex space-x-2 overflow-x-auto pb-2">
-            {filterOptions.map(option => (
-              <button
-                key={option.value}
-                onClick={() => setFilter(option.value)}
-                className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors duration-200 whitespace-nowrap ${
-                  filter === option.value
-                    ? 'bg-pink-500 text-white shadow'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <div className="flex justify-between items-center mb-4">
+            <div className="flex space-x-2 overflow-x-auto pb-2">
+                {filterOptions.map(option => (
+                <button
+                    key={option.value}
+                    onClick={() => setFilter(option.value)}
+                    className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors duration-200 whitespace-nowrap ${
+                    filter === option.value
+                        ? 'bg-pink-500 text-white shadow'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                >
+                    {option.label}
+                </button>
+                ))}
+            </div>
 
-        <div className="flex justify-end mb-4">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'startTime' | 'duration')}
-            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-pink-300 focus:ring focus:ring-pink-200 focus:ring-opacity-50"
-            aria-label="Sort tasks"
-          >
-            <option value="startTime">시간순</option>
-            <option value="duration">소요시간순</option>
-          </select>
+            <div className="flex space-x-1 flex-shrink-0">
+                <button
+                    onClick={() => setSortBy('startTime')}
+                    title="시간순 정렬"
+                    className={`p-2 rounded-full transition-colors duration-200 ${
+                    sortBy === 'startTime'
+                        ? 'bg-pink-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+                <button
+                    onClick={() => setSortBy('duration')}
+                    title="소요시간순 정렬"
+                    className={`p-2 rounded-full transition-colors duration-200 ${
+                    sortBy === 'duration'
+                        ? 'bg-pink-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 12L4 9m3 7l3-3m7-4v12m0-12l3 3m-3-3l-3 3" />
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <div className="space-y-2 relative">
@@ -173,6 +207,7 @@ const App: React.FC = () => {
               key={task.id}
               task={task}
               onToggleStatus={handleToggleStatus}
+              onEdit={handleStartEdit}
               isActive={activeTask?.id === task.id}
               elapsedTimeDisplay={formatTime(elapsedTime)}
             />
@@ -198,6 +233,12 @@ const App: React.FC = () => {
           )}
         </div>
         <AddTaskButton onClick={handleAddTask} />
+
+        <EditTaskModal
+          task={editingTask}
+          onSave={handleUpdateTask}
+          onClose={handleCloseModal}
+        />
       </div>
     </div>
   );
