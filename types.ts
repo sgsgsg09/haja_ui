@@ -11,6 +11,13 @@ export enum TaskCategory {
   Personal = 'PERSONAL',
 }
 
+export enum RecurrenceFrequency {
+  None = 'NONE',
+  Daily = 'DAILY',
+  Weekly = 'WEEKLY',
+  Monthly = 'MONTHLY',
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -19,4 +26,7 @@ export interface Task {
   endTime: string;
   duration: string;
   status: TaskStatus;
+  recurrence?: {
+    frequency: RecurrenceFrequency;
+  };
 }

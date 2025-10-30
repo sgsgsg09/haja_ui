@@ -1,5 +1,5 @@
 
-import { Task, TaskCategory, TaskStatus } from './types';
+import { Task, TaskCategory, TaskStatus, RecurrenceFrequency } from './types';
 
 export const INITIAL_TASKS: Task[] = [
   {
@@ -19,6 +19,7 @@ export const INITIAL_TASKS: Task[] = [
     endTime: '오전 11:45',
     duration: '30분',
     status: TaskStatus.Pending,
+    recurrence: { frequency: RecurrenceFrequency.Daily },
   },
   {
     id: 3,
@@ -28,6 +29,7 @@ export const INITIAL_TASKS: Task[] = [
     endTime: '오후 1:00',
     duration: '1시간',
     status: TaskStatus.Pending,
+    recurrence: { frequency: RecurrenceFrequency.Daily },
   },
   {
     id: 4,
@@ -46,5 +48,6 @@ export const INITIAL_TASKS: Task[] = [
     endTime: '오후 3:45',
     duration: '30분',
     status: TaskStatus.Pending,
+    recurrence: { frequency: RecurrenceFrequency.Daily },
   },
 ];

@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Task, TaskCategory, TaskStatus } from '../types';
+import { Task, TaskCategory, TaskStatus, RecurrenceFrequency } from '../types';
 
 interface TaskItemProps {
   task: Task;
@@ -29,6 +30,15 @@ const categoryStyles: { [key in TaskCategory]: { bg: string; icon: React.ReactEl
   },
 };
 
+const getRecurrenceText = (frequency: RecurrenceFrequency): string => {
+    switch (frequency) {
+        case RecurrenceFrequency.Daily: return '매일 반복';
+        case RecurrenceFrequency.Weekly: return '매주 반복';
+        case RecurrenceFrequency.Monthly: return '매월 반복';
+        default: return '';
+    }
+}
+
 const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, onEdit, isActive, elapsedTimeDisplay }) => {
   const isCompleted = task.status === TaskStatus.Completed;
 
@@ -49,9 +59,18 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, onEdit, isAct
                     {task.startTime}{task.endTime && `~${task.endTime}`} {task.duration && `(${task.duration})`}
                 </p>
               )}
-              <p className={`font-semibold truncate ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
-                {task.title}
-              </p>
+              <div className="flex items-center space-x-1.5">
+                <p className={`font-semibold truncate ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                  {task.title}
+                </p>
+                {task.recurrence && task.recurrence.frequency !== RecurrenceFrequency.None && (
+                    <div title={getRecurrenceText(task.recurrence.frequency)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.186l-1.393.733a5.002 5.002 0 00-8.41-1.895.992.992 0 00.01.001l-.01.01H6a1 1 0 01-1-1V3a1 1 0 011-1zm12 15a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.899-2.186l1.393-.733a5.002 5.002 0 008.41 1.895.992.992 0 00-.01-.001l.01-.01H14a1 1 0 011 1v2a1 1 0 01-1 1z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                )}
+              </div>
             </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Task, TaskCategory } from '../types';
+import { Task, TaskCategory, RecurrenceFrequency } from '../types';
 
 interface EditTaskModalProps {
   task: Task | null;
@@ -22,7 +23,17 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onSave, onClose }) 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'recurrenceFrequency') {
+        const frequency = value as RecurrenceFrequency;
+        if (frequency === RecurrenceFrequency.None) {
+            const { recurrence, ...rest } = formData;
+            setFormData(rest);
+        } else {
+            setFormData(prev => ({ ...prev, recurrence: { ...prev.recurrence, frequency } }));
+        }
+    } else {
+        setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -97,6 +108,21 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onSave, onClose }) 
                 placeholder="예: 1시간 30분"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
               />
+            </div>
+            <div>
+              <label htmlFor="recurrenceFrequency" className="block text-sm font-medium text-gray-700 mb-1">반복</label>
+              <select
+                id="recurrenceFrequency"
+                name="recurrenceFrequency"
+                value={formData.recurrence?.frequency || RecurrenceFrequency.None}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 bg-white"
+              >
+                <option value={RecurrenceFrequency.None}>안 함</option>
+                <option value={RecurrenceFrequency.Daily}>매일</option>
+                <option value={RecurrenceFrequency.Weekly}>매주</option>
+                <option value={RecurrenceFrequency.Monthly}>매월</option>
+              </select>
             </div>
           </div>
           <div className="mt-6 flex justify-end space-x-3">
