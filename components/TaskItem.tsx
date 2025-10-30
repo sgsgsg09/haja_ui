@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Task, TaskCategory, TaskStatus, RecurrenceFrequency } from '../types';
 
@@ -7,10 +6,10 @@ interface TaskItemProps {
   onToggleStatus: (id: number) => void;
   onEdit: (task: Task) => void;
   isActive: boolean;
-  elapsedTimeDisplay: string;
+  elapsedTime: number;
+  totalDurationInSeconds: number;
 }
 
-// FIX: Replaced JSX.Element with React.ReactElement to resolve namespace error.
 const categoryStyles: { [key in TaskCategory]: { bg: string; icon: React.ReactElement } } = {
   [TaskCategory.Work]: {
     bg: 'bg-green-100',
@@ -22,7 +21,7 @@ const categoryStyles: { [key in TaskCategory]: { bg: string; icon: React.ReactEl
   },
   [TaskCategory.Meal]: {
     bg: 'bg-orange-100',
-    icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>,
+    icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
   },
   [TaskCategory.Personal]: {
     bg: 'bg-sky-100',
@@ -39,11 +38,21 @@ const getRecurrenceText = (frequency: RecurrenceFrequency): string => {
     }
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, onEdit, isActive, elapsedTimeDisplay }) => {
+const ProgressBar: React.FC<{ elapsedTime: number; totalDurationInSeconds: number }> = ({ elapsedTime, totalDurationInSeconds }) => {
+  const progress = totalDurationInSeconds > 0 ? Math.min((elapsedTime / totalDurationInSeconds) * 100, 100) : 0;
+
+  return (
+    <div className="w-full bg-gray-200 rounded-full h-2 my-2" title={`${Math.floor(progress)}% 완료`}>
+        <div className="bg-pink-500 h-2 rounded-full transition-all" style={{width: `${progress}%`, transitionDuration: '1000ms', transitionTimingFunction: 'linear'}}></div>
+    </div>
+  );
+};
+
+const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, onEdit, isActive, elapsedTime, totalDurationInSeconds }) => {
   const isCompleted = task.status === TaskStatus.Completed;
 
   return (
-    <div className="flex items-center space-x-4 z-10 relative">
+    <div className={`h-full flex items-center space-x-4 z-10 relative transition-opacity duration-300 ${isCompleted ? 'opacity-50' : ''}`}>
       <div className="relative">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${categoryStyles[task.category].bg}`}>
           {categoryStyles[task.category].icon}
@@ -52,16 +61,19 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleStatus, onEdit, isAct
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
             <div>
-              {isActive ? (
-                <p className="text-sm font-bold text-green-600">{elapsedTimeDisplay}</p>
+              {isActive && totalDurationInSeconds > 0 ? (
+                <ProgressBar elapsedTime={elapsedTime} totalDurationInSeconds={totalDurationInSeconds} />
               ) : (
-                <p className="text-sm text-gray-500">
-                    {task.startTime}{task.endTime && `~${task.endTime}`} {task.duration && `(${task.duration})`}
+                <p className="text-sm text-gray-500 h-6 flex items-center">
+                    {task.startTime}{task.endTime && ` ~ ${task.endTime}`}
                 </p>
               )}
               <div className="flex items-center space-x-1.5">
                 <p className={`font-semibold truncate ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                   {task.title}
+                </p>
+                 <p className={`text-sm flex-shrink-0 ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-500'}`}>
+                    {task.duration && `(${task.duration})`}
                 </p>
                 {task.recurrence && task.recurrence.frequency !== RecurrenceFrequency.None && (
                     <div title={getRecurrenceText(task.recurrence.frequency)}>
