@@ -9,10 +9,18 @@ interface HabitStatsCarouselProps {
   onToggleStatus: (id: number) => void;
   onEdit: (task: Task) => void;
   onStatClick: () => void;
+  onTabChange?: (index: number) => void;
 }
 
-const HabitStatsCarousel: React.FC<HabitStatsCarouselProps> = ({ habits, allHabitsCompleted, onToggleStatus, onEdit, onStatClick }) => {
+const HabitStatsCarousel: React.FC<HabitStatsCarouselProps> = ({ habits, allHabitsCompleted, onToggleStatus, onEdit, onStatClick, onTabChange }) => {
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleTabChange = (index: number) => {
+    setActiveIndex(index);
+    if (onTabChange) {
+      onTabChange(index);
+    }
+  };
 
   return (
     <div>
@@ -38,8 +46,8 @@ const HabitStatsCarousel: React.FC<HabitStatsCarouselProps> = ({ habits, allHabi
           </div>
           
           <div className="flex justify-center space-x-2 mt-4">
-              <button aria-label="Go to habits list" onClick={() => setActiveIndex(0)} className={`w-2.5 h-2.5 rounded-full transition-colors ${activeIndex === 0 ? 'bg-pink-500' : 'bg-gray-300'}`}></button>
-              <button aria-label="Go to stats summary" onClick={() => setActiveIndex(1)} className={`w-2.5 h-2.5 rounded-full transition-colors ${activeIndex === 1 ? 'bg-pink-500' : 'bg-gray-300'}`}></button>
+              <button aria-label="Go to habits list" onClick={() => handleTabChange(0)} className={`w-2.5 h-2.5 rounded-full transition-colors ${activeIndex === 0 ? 'bg-pink-500' : 'bg-gray-300'}`}></button>
+              <button aria-label="Go to stats summary" onClick={() => handleTabChange(1)} className={`w-2.5 h-2.5 rounded-full transition-colors ${activeIndex === 1 ? 'bg-pink-500' : 'bg-gray-300'}`}></button>
           </div>
         </div>
 

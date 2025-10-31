@@ -5,6 +5,48 @@ import TaskItem from './components/TaskItem';
 import EditTaskModal from './components/EditTaskModal';
 import HabitStatsCarousel from './components/HabitStatsCarousel';
 import WeeklyHabitStatsView from './components/WeeklyHabitStatsView';
+import StatsDetailView from './components/StatsDetailView';
+
+// --- Data Simulation Hook (moved here for simplicity) --- //
+const pseudoRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+};
+
+const useSimulatedHabitData = (habits: Task[]) => {
+    return useMemo(() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        
+        // Simulate for current and previous month for navigation
+        const data: Map<string, { completedCount: number; habitsStatus: Map<number, boolean> }> = new Map();
+        
+        for (let month = today.getMonth() -1; month <= today.getMonth(); month++){
+            for (let day = 1; day <= new Date(year, month + 1, 0).getDate(); day++) {
+                const date = new Date(year, month, day);
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                let completedCount = 0;
+                const habitsStatus = new Map<number, boolean>();
+
+                habits.forEach(habit => {
+                    let isCompleted = false;
+                    if (date < today || (date.toDateString() !== today.toDateString())) { // Past days
+                        isCompleted = pseudoRandom(habit.id + day * (month + 1)) > 0.4; // ~60% chance
+                    } else if (date.toDateString() === today.toDateString()) { // Today
+                        isCompleted = habit.status === TaskStatus.Completed;
+                    }
+                    habitsStatus.set(habit.id, isCompleted);
+                    if (isCompleted) {
+                        completedCount++;
+                    }
+                });
+                data.set(dateStr, { completedCount, habitsStatus });
+            }
+        }
+        return data;
+    }, [habits]);
+};
+
 
 const parseDuration = (durationStr: string): number => {
     if (!durationStr) return 0;
@@ -59,10 +101,13 @@ const App: React.FC = () => {
   const [filter, setFilter] = useState<TaskCategory | 'ALL'>('ALL');
   const [sortBy, setSortBy] = useState<'startTime' | 'duration'>('startTime');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [viewMode, setViewMode] = useState<'schedule' | 'habitStats'>('schedule');
+  const [viewMode, setViewMode] = useState<'schedule' | 'stats'>('schedule');
+  const [carouselTab, setCarouselTab] = useState(0);
 
   const habits = useMemo(() => tasks.filter(task => task.isHabit), [tasks]);
   const scheduledTasks = useMemo(() => tasks.filter(task => !task.isHabit), [tasks]);
+  
+  const simulatedData = useSimulatedHabitData(habits);
 
   const activeTask = useMemo(() => scheduledTasks.find(task => task.status === TaskStatus.Pending), [scheduledTasks]);
   
@@ -72,15 +117,11 @@ const App: React.FC = () => {
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
     if (activeTask) {
-      // Example: Start with a predefined elapsed time for demonstration.
-      // In a real app, you might load this from storage or start from 0.
       const initialTime = activeTask.id === 1 && elapsedTime === 0 ? 12 * 60 + 5 : elapsedTime;
       setElapsedTime(initialTime);
       interval = setInterval(() => {
         setElapsedTime(prev => prev + 1);
       }, 1000);
-    } else {
-      // Reset or handle timer stop
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -112,13 +153,8 @@ const App: React.FC = () => {
     setFilter('ALL');
   }, [tasks]);
 
-  const handleStartEdit = useCallback((task: Task) => {
-    setEditingTask(task);
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setEditingTask(null);
-  }, []);
+  const handleStartEdit = useCallback((task: Task) => setEditingTask(task), []);
+  const handleCloseModal = useCallback(() => setEditingTask(null), []);
 
   const handleUpdateTask = useCallback((updatedTask: Task) => {
     setTasks(prevTasks =>
@@ -126,6 +162,9 @@ const App: React.FC = () => {
     );
     setEditingTask(null);
   }, []);
+  
+  const handleNavigateToStats = useCallback(() => setViewMode('stats'), []);
+  const handleNavigateToSchedule = useCallback(() => setViewMode('schedule'), []);
 
   const displayedTasks = useMemo(() => {
     const parseTime = (timeStr: string): number => {
@@ -134,20 +173,15 @@ const App: React.FC = () => {
       if (!time) return Infinity;
       const [hours, minutes] = time.split(':').map(Number);
       let totalMinutes = hours * 60 + minutes;
-      if (period === '오후' && hours < 12) {
-        totalMinutes += 12 * 60;
-      }
+      if (period === '오후' && hours < 12) totalMinutes += 12 * 60;
       return totalMinutes;
     };
 
     return scheduledTasks
       .filter(task => filter === 'ALL' || task.category === filter)
       .sort((a, b) => {
-        if (sortBy === 'startTime') {
-            return parseTime(a.startTime) - parseTime(b.startTime);
-        } else { // 'duration'
-            return parseDuration(b.duration) - parseDuration(a.duration);
-        }
+        if (sortBy === 'startTime') return parseTime(a.startTime) - parseTime(b.startTime);
+        return parseDuration(b.duration) - parseDuration(a.duration);
       });
   }, [scheduledTasks, filter, sortBy]);
 
@@ -159,8 +193,20 @@ const App: React.FC = () => {
     { value: TaskCategory.Personal, label: '개인' },
   ];
 
-  const MINUTE_TO_PIXEL_RATIO = 3.2; // 3.2px per minute, so 30min = 96px
-  const MIN_TASK_HEIGHT = 80; // Minimum height for tasks with no duration
+  const MINUTE_TO_PIXEL_RATIO = 3.2;
+  const MIN_TASK_HEIGHT = 80;
+
+  if (viewMode === 'stats') {
+      return (
+          <div className="min-h-screen bg-gradient-to-br from-gray-700 via-gray-900 to-black flex items-center justify-center p-4 font-sans">
+              <StatsDetailView
+                habits={habits}
+                simulatedData={simulatedData}
+                onClose={handleNavigateToSchedule}
+              />
+          </div>
+      );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-700 via-gray-900 to-black flex items-center justify-center p-4 font-sans">
@@ -174,120 +220,75 @@ const App: React.FC = () => {
               allHabitsCompleted={allHabitsCompleted}
               onToggleStatus={handleToggleStatus}
               onEdit={handleStartEdit}
-              onStatClick={() => setViewMode('habitStats')}
+              onStatClick={handleNavigateToStats}
+              onTabChange={setCarouselTab}
             />
             <hr className="my-6 border-gray-200" />
           </div>
         )}
-
-        {viewMode === 'schedule' ? (
-          <>
-            <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-2">
-                    {filterOptions.map(option => (
-                    <button
-                        key={option.value}
-                        onClick={() => setFilter(option.value)}
-                        title={option.label}
-                        className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 ${
-                        filter === option.value
-                            ? 'bg-pink-500 text-white shadow'
-                            : `bg-gray-200 text-gray-700 hover:bg-gray-300`
-                        }`}
-                    >
-                        {categoryIcons[option.value].icon}
-                    </button>
-                    ))}
-                </div>
-
-                <div className="flex space-x-1 flex-shrink-0">
-                    <button
-                        onClick={() => setSortBy('startTime')}
-                        title="시간순 정렬"
-                        className={`p-2 rounded-full transition-colors duration-200 ${
-                        sortBy === 'startTime'
-                            ? 'bg-pink-500 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={() => setSortBy('duration')}
-                        title="소요시간순 정렬"
-                        className={`p-2 rounded-full transition-colors duration-200 ${
-                        sortBy === 'duration'
-                            ? 'bg-pink-500 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 12L4 9m3 7l3-3m7-4v12m0-12l3 3m-3-3l-3 3" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div className="space-y-2 relative">
-              {displayedTasks.length > 0 && (
-                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-              )}
-
-              {displayedTasks.map((task) => {
-                const durationInMinutes = parseDuration(task.duration);
-                const itemHeight = durationInMinutes > 0
-                    ? durationInMinutes * MINUTE_TO_PIXEL_RATIO
-                    : MIN_TASK_HEIGHT;
-
-                const totalDurationInSeconds = durationInMinutes * 60;
-                
-                return (
-                  <div key={task.id} style={{ height: `${itemHeight}px` }}>
-                    <TaskItem
-                      task={task}
-                      onToggleStatus={handleToggleStatus}
-                      onEdit={handleStartEdit}
-                      isActive={activeTask?.id === task.id}
-                      elapsedTime={activeTask?.id === task.id ? elapsedTime : 0}
-                      totalDurationInSeconds={totalDurationInSeconds}
-                    />
-                  </div>
-                );
-              })}
-
-              {scheduledTasks.length > 0 && displayedTasks.length === 0 && (
-                 <div className="text-center py-16 text-gray-500">
-                    <p className="font-semibold">선택된 카테고리에 일정이 없어요.</p>
-                </div>
-              )}
-
-              {scheduledTasks.length === 0 && tasks.length > 0 && (
-                <div className="text-center py-16 text-gray-500">
-                  <p className="font-semibold">오늘의 모든 일정을 완료했어요!</p>
-                </div>
-              )}
-
-              {tasks.length === 0 && (
-                <div className="text-center py-16 text-gray-500">
-                  <p className="font-semibold">오늘의 첫 일정을 추가해 보세요!</p>
-                </div>
-              )}
-
-              {allScheduledTasksCompleted && (
-                <div className="text-center pt-8 pb-4 text-green-600">
-                  <p className="font-bold text-lg">오늘의 모든 일정을 완료했어요!</p>
-                  <p className="text-sm">멋진 하루네요.</p>
-                </div>
-              )}
-            </div>
-          </>
+        
+        {carouselTab === 1 ? (
+             <WeeklyHabitStatsView habits={habits} simulatedData={simulatedData} />
         ) : (
-          <WeeklyHabitStatsView
-            habits={habits}
-            onToggleStatus={handleToggleStatus}
-            onBackToSchedule={() => setViewMode('schedule')}
-          />
+            <>
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex space-x-2">
+                        {filterOptions.map(option => (
+                        <button
+                            key={option.value}
+                            onClick={() => setFilter(option.value)}
+                            title={option.label}
+                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 ${
+                            filter === option.value ? 'bg-pink-500 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                            {categoryIcons[option.value].icon}
+                        </button>
+                        ))}
+                    </div>
+
+                    <div className="flex space-x-1 flex-shrink-0">
+                        <button
+                            onClick={() => setSortBy('startTime')}
+                            title="시간순 정렬"
+                            className={`p-2 rounded-full transition-colors duration-200 ${sortBy === 'startTime' ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                        <button
+                            onClick={() => setSortBy('duration')}
+                            title="소요시간순 정렬"
+                            className={`p-2 rounded-full transition-colors duration-200 ${sortBy === 'duration' ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 12L4 9m3 7l3-3m7-4v12m0-12l3 3m-3-3l-3 3" /></svg>
+                        </button>
+                    </div>
+                </div>
+                <div className="space-y-2 relative">
+                  {displayedTasks.length > 0 && <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>}
+                  {displayedTasks.map((task) => {
+                    const durationInMinutes = parseDuration(task.duration);
+                    const itemHeight = durationInMinutes > 0 ? durationInMinutes * MINUTE_TO_PIXEL_RATIO : MIN_TASK_HEIGHT;
+                    const totalDurationInSeconds = durationInMinutes * 60;
+                    return (
+                      <div key={task.id} style={{ height: `${itemHeight}px` }}>
+                        <TaskItem
+                          task={task}
+                          onToggleStatus={handleToggleStatus}
+                          onEdit={handleStartEdit}
+                          isActive={activeTask?.id === task.id}
+                          elapsedTime={activeTask?.id === task.id ? elapsedTime : 0}
+                          totalDurationInSeconds={totalDurationInSeconds}
+                        />
+                      </div>
+                    );
+                  })}
+                  {scheduledTasks.length > 0 && displayedTasks.length === 0 && (<div className="text-center py-16 text-gray-500"><p className="font-semibold">선택된 카테고리에 일정이 없어요.</p></div>)}
+                  {scheduledTasks.length === 0 && tasks.length > 0 && (<div className="text-center py-16 text-gray-500"><p className="font-semibold">오늘의 모든 일정을 완료했어요!</p></div>)}
+                  {tasks.length === 0 && (<div className="text-center py-16 text-gray-500"><p className="font-semibold">오늘의 첫 일정을 추가해 보세요!</p></div>)}
+                  {allScheduledTasksCompleted && (<div className="text-center pt-8 pb-4 text-green-600"><p className="font-bold text-lg">오늘의 모든 일정을 완료했어요!</p><p className="text-sm">멋진 하루네요.</p></div>)}
+                </div>
+            </>
         )}
         
         <AddTaskButton onClick={handleAddTask} />
