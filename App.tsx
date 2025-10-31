@@ -1,10 +1,10 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Task, TaskStatus, TaskCategory } from './types';
 import { INITIAL_TASKS } from './constants';
 import TaskItem from './components/TaskItem';
 import EditTaskModal from './components/EditTaskModal';
-import HabitItem from './components/HabitItem';
+import HabitStatsCarousel from './components/HabitStatsCarousel';
+import StatsDetailModal from './components/StatsDetailModal';
 
 const parseDuration = (durationStr: string): number => {
     if (!durationStr) return 0;
@@ -59,6 +59,7 @@ const App: React.FC = () => {
   const [filter, setFilter] = useState<TaskCategory | 'ALL'>('ALL');
   const [sortBy, setSortBy] = useState<'startTime' | 'duration'>('startTime');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
 
   const habits = useMemo(() => tasks.filter(task => task.isHabit), [tasks]);
   const scheduledTasks = useMemo(() => tasks.filter(task => !task.isHabit), [tasks]);
@@ -126,6 +127,14 @@ const App: React.FC = () => {
     setEditingTask(null);
   }, []);
 
+  const handleOpenStatsModal = useCallback(() => {
+    setIsStatsModalOpen(true);
+  }, []);
+  
+  const handleCloseStatsModal = useCallback(() => {
+    setIsStatsModalOpen(false);
+  }, []);
+
   const displayedTasks = useMemo(() => {
     const parseTime = (timeStr: string): number => {
       if (timeStr === '시간 미정') return Infinity;
@@ -166,24 +175,15 @@ const App: React.FC = () => {
       <div className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 sm:p-8 relative">
         <Header />
 
-        {habits.length > 0 && (
+        {(habits.length > 0) && (
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-gray-700 mb-3 px-1">오늘의 습관</h2>
-            <div className="space-y-2 bg-gray-100 p-3 rounded-xl">
-              {habits.map(habit => (
-                <HabitItem
-                  key={habit.id}
-                  task={habit}
-                  onToggleStatus={handleToggleStatus}
-                  onEdit={handleStartEdit}
-                />
-              ))}
-            </div>
-            {allHabitsCompleted && (
-              <p className="text-center text-sm text-green-600 mt-3 font-semibold">
-                오늘의 습관을 모두 완료했어요!
-              </p>
-            )}
+            <HabitStatsCarousel
+              habits={habits}
+              allHabitsCompleted={allHabitsCompleted}
+              onToggleStatus={handleToggleStatus}
+              onEdit={handleStartEdit}
+              onStatClick={handleOpenStatsModal}
+            />
             <hr className="my-6 border-gray-200" />
           </div>
         )}
@@ -294,6 +294,12 @@ const App: React.FC = () => {
           task={editingTask}
           onSave={handleUpdateTask}
           onClose={handleCloseModal}
+        />
+
+        <StatsDetailModal
+          isOpen={isStatsModalOpen}
+          onClose={handleCloseStatsModal}
+          tasks={tasks}
         />
       </div>
     </div>
