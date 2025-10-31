@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Task, TaskCategory, RecurrenceFrequency } from '../types';
 
@@ -70,21 +71,26 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onSave, onClose }) 
   }, [task]);
 
   useEffect(() => {
-      const startMinutes = parseTimeToMinutes(formData.startTime || '');
-      const endMinutes = parseTimeToMinutes(formData.endTime || '');
+    if (formData.isHabit) {
+      setFormData(prev => ({ ...prev, duration: prev.duration || '' }));
+      return;
+    };
 
-      if (startMinutes !== null && endMinutes !== null && endMinutes > startMinutes) {
-          const diff = endMinutes - startMinutes;
-          const hours = Math.floor(diff / 60);
-          const minutes = diff % 60;
-          let durationStr = '';
-          if (hours > 0) durationStr += `${hours}시간 `;
-          if (minutes > 0) durationStr += `${minutes}분`;
-          setFormData(prev => ({ ...prev, duration: durationStr.trim() }));
-      } else {
-          setFormData(prev => ({ ...prev, duration: '' }));
-      }
-  }, [formData.startTime, formData.endTime, parseTimeToMinutes]);
+    const startMinutes = parseTimeToMinutes(formData.startTime || '');
+    const endMinutes = parseTimeToMinutes(formData.endTime || '');
+
+    if (startMinutes !== null && endMinutes !== null && endMinutes > startMinutes) {
+        const diff = endMinutes - startMinutes;
+        const hours = Math.floor(diff / 60);
+        const minutes = diff % 60;
+        let durationStr = '';
+        if (hours > 0) durationStr += `${hours}시간 `;
+        if (minutes > 0) durationStr += `${minutes}분`;
+        setFormData(prev => ({ ...prev, duration: durationStr.trim() }));
+    } else {
+        setFormData(prev => ({ ...prev, duration: '' }));
+    }
+  }, [formData.startTime, formData.endTime, formData.isHabit, parseTimeToMinutes]);
 
 
   if (!task) return null;
@@ -93,6 +99,25 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onSave, onClose }) 
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
+  const handleIsHabitChange = (isHabit: boolean) => {
+    if (isHabit) {
+        setFormData(prev => ({
+            ...prev,
+            isHabit,
+            startTime: '',
+            endTime: '',
+            duration: prev.duration || '30분'
+        }));
+    } else {
+        setFormData(prev => ({
+            ...prev,
+            isHabit,
+            startTime: '오전 09:00',
+            endTime: '오전 10:00'
+        }));
+    }
+  }
+
   const handleRecurrenceChange = (frequency: RecurrenceFrequency) => {
       if (frequency === RecurrenceFrequency.None) {
           const { recurrence, ...rest } = formData;
@@ -109,11 +134,11 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onSave, onClose }) 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">일정 수정</h2>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 overflow-y-auto max-h-full">
+        <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.isHabit ? "습관 수정" : "일정 수정"}</h2>
         <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">일정</label>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">{formData.isHabit ? "습관" : "일정"}</label>
               <input
                 type="text"
                 id="title"
@@ -142,23 +167,51 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onSave, onClose }) 
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">시작 시간</label>
-              <TimePicker value={formData.startTime || ''} onChange={(value) => handleFieldChange('startTime', value)} />
+            <div className="flex items-center justify-between bg-gray-100 p-3 rounded-lg">
+                <label htmlFor="isHabit" className="text-sm font-medium text-gray-700">습관으로 등록</label>
+                <button
+                    type="button"
+                    id="isHabit"
+                    onClick={() => handleIsHabitChange(!formData.isHabit)}
+                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${formData.isHabit ? 'bg-pink-500' : 'bg-gray-300'}`}
+                >
+                    <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${formData.isHabit ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">종료 시간</label>
-              <TimePicker value={formData.endTime || ''} onChange={(value) => handleFieldChange('endTime', value)} />
-            </div>
+            {!formData.isHabit && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">시작 시간</label>
+                  <TimePicker value={formData.startTime || ''} onChange={(value) => handleFieldChange('startTime', value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">종료 시간</label>
+                  <TimePicker value={formData.endTime || ''} onChange={(value) => handleFieldChange('endTime', value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">소요 시간 (자동 계산)</label>
+                  <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-600">
+                    {formData.duration || '시작과 종료 시간을 선택하세요'}
+                  </div>
+                </div>
+              </>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">소요 시간 (자동 계산)</label>
-              <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-600">
-                {formData.duration || '시작과 종료 시간을 선택하세요'}
-              </div>
-            </div>
-
+            {formData.isHabit && (
+                 <div>
+                    <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">소요 시간 (예상)</label>
+                    <input
+                        type="text"
+                        id="duration"
+                        value={formData.duration || ''}
+                        onChange={(e) => handleFieldChange('duration', e.target.value)}
+                        placeholder="예: 30분"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+                    />
+                 </div>
+            )}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">반복</label>
               <div className="flex space-x-2">

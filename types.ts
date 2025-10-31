@@ -26,6 +26,7 @@ export interface Task {
   endTime: string;
   duration: string;
   status: TaskStatus;
+  isHabit?: boolean;
   recurrence?: {
     frequency: RecurrenceFrequency;
   };

@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Task, TaskStatus, TaskCategory } from './types';
 import { INITIAL_TASKS } from './constants';
 import TaskItem from './components/TaskItem';
 import EditTaskModal from './components/EditTaskModal';
+import HabitItem from './components/HabitItem';
 
 const parseDuration = (durationStr: string): number => {
     if (!durationStr) return 0;
@@ -58,9 +60,13 @@ const App: React.FC = () => {
   const [sortBy, setSortBy] = useState<'startTime' | 'duration'>('startTime');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  const activeTask = useMemo(() => tasks.find(task => task.status === TaskStatus.Pending), [tasks]);
+  const habits = useMemo(() => tasks.filter(task => task.isHabit), [tasks]);
+  const scheduledTasks = useMemo(() => tasks.filter(task => !task.isHabit), [tasks]);
+
+  const activeTask = useMemo(() => scheduledTasks.find(task => task.status === TaskStatus.Pending), [scheduledTasks]);
   
-  const allTasksCompleted = useMemo(() => tasks.length > 0 && tasks.every(task => task.status === TaskStatus.Completed), [tasks]);
+  const allScheduledTasksCompleted = useMemo(() => scheduledTasks.length > 0 && scheduledTasks.every(task => task.status === TaskStatus.Completed), [scheduledTasks]);
+  const allHabitsCompleted = useMemo(() => habits.length > 0 && habits.every(habit => habit.status === TaskStatus.Completed), [habits]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
@@ -99,6 +105,7 @@ const App: React.FC = () => {
         endTime: '',
         duration: '',
         status: TaskStatus.Pending,
+        isHabit: false,
     };
     setTasks(prev => [...prev, newTask]);
     setFilter('ALL');
@@ -132,7 +139,7 @@ const App: React.FC = () => {
       return totalMinutes;
     };
 
-    return tasks
+    return scheduledTasks
       .filter(task => filter === 'ALL' || task.category === filter)
       .sort((a, b) => {
         if (sortBy === 'startTime') {
@@ -141,7 +148,7 @@ const App: React.FC = () => {
             return parseDuration(b.duration) - parseDuration(a.duration);
         }
       });
-  }, [tasks, filter, sortBy]);
+  }, [scheduledTasks, filter, sortBy]);
 
   const filterOptions: { value: TaskCategory | 'ALL', label: string }[] = [
     { value: 'ALL', label: '전체' },
@@ -158,6 +165,28 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-700 via-gray-900 to-black flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 sm:p-8 relative">
         <Header />
+
+        {habits.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-gray-700 mb-3 px-1">오늘의 습관</h2>
+            <div className="space-y-2 bg-gray-100 p-3 rounded-xl">
+              {habits.map(habit => (
+                <HabitItem
+                  key={habit.id}
+                  task={habit}
+                  onToggleStatus={handleToggleStatus}
+                  onEdit={handleStartEdit}
+                />
+              ))}
+            </div>
+            {allHabitsCompleted && (
+              <p className="text-center text-sm text-green-600 mt-3 font-semibold">
+                오늘의 습관을 모두 완료했어요!
+              </p>
+            )}
+            <hr className="my-6 border-gray-200" />
+          </div>
+        )}
 
         <div className="flex justify-between items-center mb-4">
             <div className="flex space-x-2">
@@ -234,9 +263,15 @@ const App: React.FC = () => {
             );
           })}
 
-          {tasks.length > 0 && displayedTasks.length === 0 && (
+          {scheduledTasks.length > 0 && displayedTasks.length === 0 && (
              <div className="text-center py-16 text-gray-500">
                 <p className="font-semibold">선택된 카테고리에 일정이 없어요.</p>
+            </div>
+          )}
+
+          {scheduledTasks.length === 0 && tasks.length > 0 && (
+            <div className="text-center py-16 text-gray-500">
+              <p className="font-semibold">오늘의 모든 일정을 완료했어요!</p>
             </div>
           )}
 
@@ -246,7 +281,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {allTasksCompleted && (
+          {allScheduledTasksCompleted && (
             <div className="text-center pt-8 pb-4 text-green-600">
               <p className="font-bold text-lg">오늘의 모든 일정을 완료했어요!</p>
               <p className="text-sm">멋진 하루네요.</p>
