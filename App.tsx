@@ -4,7 +4,7 @@ import { INITIAL_TASKS } from './constants';
 import TaskItem from './components/TaskItem';
 import EditTaskModal from './components/EditTaskModal';
 import HabitStatsCarousel from './components/HabitStatsCarousel';
-import StatsDetailModal from './components/StatsDetailModal';
+import WeeklyHabitStatsView from './components/WeeklyHabitStatsView';
 
 const parseDuration = (durationStr: string): number => {
     if (!durationStr) return 0;
@@ -59,7 +59,7 @@ const App: React.FC = () => {
   const [filter, setFilter] = useState<TaskCategory | 'ALL'>('ALL');
   const [sortBy, setSortBy] = useState<'startTime' | 'duration'>('startTime');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'schedule' | 'habitStats'>('schedule');
 
   const habits = useMemo(() => tasks.filter(task => task.isHabit), [tasks]);
   const scheduledTasks = useMemo(() => tasks.filter(task => !task.isHabit), [tasks]);
@@ -127,14 +127,6 @@ const App: React.FC = () => {
     setEditingTask(null);
   }, []);
 
-  const handleOpenStatsModal = useCallback(() => {
-    setIsStatsModalOpen(true);
-  }, []);
-  
-  const handleCloseStatsModal = useCallback(() => {
-    setIsStatsModalOpen(false);
-  }, []);
-
   const displayedTasks = useMemo(() => {
     const parseTime = (timeStr: string): number => {
       if (timeStr === '시간 미정') return Infinity;
@@ -182,124 +174,129 @@ const App: React.FC = () => {
               allHabitsCompleted={allHabitsCompleted}
               onToggleStatus={handleToggleStatus}
               onEdit={handleStartEdit}
-              onStatClick={handleOpenStatsModal}
+              onStatClick={() => setViewMode('habitStats')}
             />
             <hr className="my-6 border-gray-200" />
           </div>
         )}
 
-        <div className="flex justify-between items-center mb-4">
-            <div className="flex space-x-2">
-                {filterOptions.map(option => (
-                <button
-                    key={option.value}
-                    onClick={() => setFilter(option.value)}
-                    title={option.label}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 ${
-                    filter === option.value
-                        ? 'bg-pink-500 text-white shadow'
-                        : `bg-gray-200 text-gray-700 hover:bg-gray-300`
-                    }`}
-                >
-                    {categoryIcons[option.value].icon}
-                </button>
-                ))}
+        {viewMode === 'schedule' ? (
+          <>
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex space-x-2">
+                    {filterOptions.map(option => (
+                    <button
+                        key={option.value}
+                        onClick={() => setFilter(option.value)}
+                        title={option.label}
+                        className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 ${
+                        filter === option.value
+                            ? 'bg-pink-500 text-white shadow'
+                            : `bg-gray-200 text-gray-700 hover:bg-gray-300`
+                        }`}
+                    >
+                        {categoryIcons[option.value].icon}
+                    </button>
+                    ))}
+                </div>
+
+                <div className="flex space-x-1 flex-shrink-0">
+                    <button
+                        onClick={() => setSortBy('startTime')}
+                        title="시간순 정렬"
+                        className={`p-2 rounded-full transition-colors duration-200 ${
+                        sortBy === 'startTime'
+                            ? 'bg-pink-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => setSortBy('duration')}
+                        title="소요시간순 정렬"
+                        className={`p-2 rounded-full transition-colors duration-200 ${
+                        sortBy === 'duration'
+                            ? 'bg-pink-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 12L4 9m3 7l3-3m7-4v12m0-12l3 3m-3-3l-3 3" />
+                        </svg>
+                    </button>
+                </div>
             </div>
+            <div className="space-y-2 relative">
+              {displayedTasks.length > 0 && (
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+              )}
 
-            <div className="flex space-x-1 flex-shrink-0">
-                <button
-                    onClick={() => setSortBy('startTime')}
-                    title="시간순 정렬"
-                    className={`p-2 rounded-full transition-colors duration-200 ${
-                    sortBy === 'startTime'
-                        ? 'bg-pink-500 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </button>
-                <button
-                    onClick={() => setSortBy('duration')}
-                    title="소요시간순 정렬"
-                    className={`p-2 rounded-full transition-colors duration-200 ${
-                    sortBy === 'duration'
-                        ? 'bg-pink-500 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 12L4 9m3 7l3-3m7-4v12m0-12l3 3m-3-3l-3 3" />
-                    </svg>
-                </button>
+              {displayedTasks.map((task) => {
+                const durationInMinutes = parseDuration(task.duration);
+                const itemHeight = durationInMinutes > 0
+                    ? durationInMinutes * MINUTE_TO_PIXEL_RATIO
+                    : MIN_TASK_HEIGHT;
+
+                const totalDurationInSeconds = durationInMinutes * 60;
+                
+                return (
+                  <div key={task.id} style={{ height: `${itemHeight}px` }}>
+                    <TaskItem
+                      task={task}
+                      onToggleStatus={handleToggleStatus}
+                      onEdit={handleStartEdit}
+                      isActive={activeTask?.id === task.id}
+                      elapsedTime={activeTask?.id === task.id ? elapsedTime : 0}
+                      totalDurationInSeconds={totalDurationInSeconds}
+                    />
+                  </div>
+                );
+              })}
+
+              {scheduledTasks.length > 0 && displayedTasks.length === 0 && (
+                 <div className="text-center py-16 text-gray-500">
+                    <p className="font-semibold">선택된 카테고리에 일정이 없어요.</p>
+                </div>
+              )}
+
+              {scheduledTasks.length === 0 && tasks.length > 0 && (
+                <div className="text-center py-16 text-gray-500">
+                  <p className="font-semibold">오늘의 모든 일정을 완료했어요!</p>
+                </div>
+              )}
+
+              {tasks.length === 0 && (
+                <div className="text-center py-16 text-gray-500">
+                  <p className="font-semibold">오늘의 첫 일정을 추가해 보세요!</p>
+                </div>
+              )}
+
+              {allScheduledTasksCompleted && (
+                <div className="text-center pt-8 pb-4 text-green-600">
+                  <p className="font-bold text-lg">오늘의 모든 일정을 완료했어요!</p>
+                  <p className="text-sm">멋진 하루네요.</p>
+                </div>
+              )}
             </div>
-        </div>
-
-        <div className="space-y-2 relative">
-          {displayedTasks.length > 0 && (
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-          )}
-
-          {displayedTasks.map((task) => {
-            const durationInMinutes = parseDuration(task.duration);
-            const itemHeight = durationInMinutes > 0
-                ? durationInMinutes * MINUTE_TO_PIXEL_RATIO
-                : MIN_TASK_HEIGHT;
-
-            const totalDurationInSeconds = durationInMinutes * 60;
-            
-            return (
-              <div key={task.id} style={{ height: `${itemHeight}px` }}>
-                <TaskItem
-                  task={task}
-                  onToggleStatus={handleToggleStatus}
-                  onEdit={handleStartEdit}
-                  isActive={activeTask?.id === task.id}
-                  elapsedTime={activeTask?.id === task.id ? elapsedTime : 0}
-                  totalDurationInSeconds={totalDurationInSeconds}
-                />
-              </div>
-            );
-          })}
-
-          {scheduledTasks.length > 0 && displayedTasks.length === 0 && (
-             <div className="text-center py-16 text-gray-500">
-                <p className="font-semibold">선택된 카테고리에 일정이 없어요.</p>
-            </div>
-          )}
-
-          {scheduledTasks.length === 0 && tasks.length > 0 && (
-            <div className="text-center py-16 text-gray-500">
-              <p className="font-semibold">오늘의 모든 일정을 완료했어요!</p>
-            </div>
-          )}
-
-          {tasks.length === 0 && (
-            <div className="text-center py-16 text-gray-500">
-              <p className="font-semibold">오늘의 첫 일정을 추가해 보세요!</p>
-            </div>
-          )}
-
-          {allScheduledTasksCompleted && (
-            <div className="text-center pt-8 pb-4 text-green-600">
-              <p className="font-bold text-lg">오늘의 모든 일정을 완료했어요!</p>
-              <p className="text-sm">멋진 하루네요.</p>
-            </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <WeeklyHabitStatsView
+            habits={habits}
+            onToggleStatus={handleToggleStatus}
+            onEdit={handleStartEdit}
+            onBackToSchedule={() => setViewMode('schedule')}
+          />
+        )}
+        
         <AddTaskButton onClick={handleAddTask} />
 
         <EditTaskModal
           task={editingTask}
           onSave={handleUpdateTask}
           onClose={handleCloseModal}
-        />
-
-        <StatsDetailModal
-          isOpen={isStatsModalOpen}
-          onClose={handleCloseStatsModal}
-          tasks={tasks}
         />
       </div>
     </div>
