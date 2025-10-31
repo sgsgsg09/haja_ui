@@ -286,7 +286,6 @@ const App: React.FC = () => {
           <WeeklyHabitStatsView
             habits={habits}
             onToggleStatus={handleToggleStatus}
-            onEdit={handleStartEdit}
             onBackToSchedule={() => setViewMode('schedule')}
           />
         )}

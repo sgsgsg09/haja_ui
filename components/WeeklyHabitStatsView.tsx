@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Task, TaskCategory, TaskStatus } from '../types';
 
 interface WeeklyHabitStatsViewProps {
   habits: Task[];
   onToggleStatus: (id: number) => void;
-  onEdit: (task: Task) => void;
   onBackToSchedule: () => void;
 }
 
@@ -27,15 +26,69 @@ const categoryStyles: { [key in TaskCategory]: { bg: string; icon: React.ReactEl
   },
 };
 
-const WeeklyHabitStatsView: React.FC<WeeklyHabitStatsViewProps> = ({ habits, onToggleStatus, onEdit, onBackToSchedule }) => {
+const WeeklyHabitStatsView: React.FC<WeeklyHabitStatsViewProps> = ({ habits, onToggleStatus, onBackToSchedule }) => {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
+  // Simulate historical data and calculate weekly stats
+  const weeklyStats = useMemo(() => {
+    const totalHabitsForWeek = habits.length * 7;
+    let totalCompleted = 0;
+
+    const habitsWithStats = habits.map(habit => {
+      // Simple pseudo-random generator for consistent "randomness"
+      const pseudoRandom = (seed: number) => {
+        const x = Math.sin(seed) * 10000;
+        return x - Math.floor(x) > 0.5;
+      };
+
+      const dailyStatus: boolean[] = Array(7).fill(false);
+
+      for (let i = 0; i < 7; i++) {
+        if (i < dayOfWeek) {
+          // Past days: use simulated data
+          dailyStatus[i] = pseudoRandom(habit.id + i);
+        } else if (i === dayOfWeek) {
+          // Today: use real data
+          dailyStatus[i] = habit.status === TaskStatus.Completed;
+        }
+        // Future days remain false
+        
+        if(dailyStatus[i]) totalCompleted++;
+      }
+      
+      // Calculate streak
+      let currentStreak = 0;
+      if (dailyStatus[dayOfWeek]) { // Must be completed today to have a streak
+          currentStreak = 1;
+          for (let i = dayOfWeek - 1; i >= 0; i--) {
+              if(dailyStatus[i]) {
+                  currentStreak++;
+              } else {
+                  break;
+              }
+          }
+      }
+
+      return {
+        ...habit,
+        dailyStatus,
+        streak: currentStreak,
+      };
+    });
+
+    const overallCompletion = totalHabitsForWeek > 0 ? Math.round((totalCompleted / (habits.length * (dayOfWeek + 1))) * 100) : 0;
+    
+    return { habitsWithStats, overallCompletion };
+
+  }, [habits, dayOfWeek]);
+
+
   return (
     <div>
         <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-700">주간 습관 통계</h2>
+            <h2 className="text-lg font-bold text-gray-700">주간 습관 현황</h2>
             <button
                 onClick={onBackToSchedule}
                 className="text-sm font-semibold text-pink-500 hover:text-pink-600 flex items-center space-x-1 transition-colors"
@@ -47,53 +100,69 @@ const WeeklyHabitStatsView: React.FC<WeeklyHabitStatsViewProps> = ({ habits, onT
                 <span>일정으로 돌아가기</span>
             </button>
         </div>
+
+        <div className="bg-gray-100 p-4 rounded-xl mb-6 text-center">
+            <p className="text-sm text-gray-600">이번 주 달성률 (오늘까지)</p>
+            <p className="text-4xl font-bold text-pink-500 my-1">{weeklyStats.overallCompletion}%</p>
+            <p className="text-xs text-gray-500">*과거 데이터는 데모용으로 시뮬레이션 되었습니다.</p>
+        </div>
+
         <div className="space-y-3">
-        {habits.map(habit => {
-            const isCompleted = habit.status === TaskStatus.Completed;
+        {weeklyStats.habitsWithStats.map(habit => {
             return (
-            <div key={habit.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${categoryStyles[habit.category].bg}`}>
-                {categoryStyles[habit.category].icon}
+            <div key={habit.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${categoryStyles[habit.category].bg}`}>
+                        {categoryStyles[habit.category].icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className={`font-semibold truncate text-gray-800`}>
+                            {habit.title}
+                        </p>
+                        {habit.streak > 0 && (
+                            <p className="text-xs text-orange-500 font-semibold">{habit.streak}일 연속 달성중! 🔥</p>
+                        )}
+                    </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                <p className={`font-semibold truncate ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
-                    {habit.title}
-                </p>
-                </div>
-                <div className="flex space-x-1.5 flex-shrink-0">
+                <div className="flex justify-around items-center pt-3 mt-3 border-t border-gray-100">
                 {weekDays.map((dayLabel, index) => {
                     const isToday = index === dayOfWeek;
+                    const isCompleted = habit.dailyStatus[index];
+                    const DayComponent = isToday ? 'button' : 'div';
+                    
                     return (
-                    <button
-                        key={index}
-                        disabled={!isToday}
-                        onClick={() => isToday && onToggleStatus(habit.id)}
-                        title={isToday ? (isCompleted ? "미완료로 표시" : "완료로 표시") : dayLabel}
-                        className={`w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center transition-all
-                        ${isToday ? 'cursor-pointer ring-2 ring-pink-300' : 'bg-gray-100 text-gray-400'}
-                        ${isToday && isCompleted ? 'bg-pink-500 text-white' : ''}
-                        ${isToday && !isCompleted ? 'bg-white text-pink-500 hover:bg-pink-50' : ''}
-                        `}
-                    >
-                        {dayLabel}
-                    </button>
+                    <div key={index} className="flex flex-col items-center space-y-1">
+                        <span className={`text-xs font-medium ${isToday ? 'text-pink-500' : 'text-gray-400'}`}>{dayLabel}</span>
+                        <DayComponent
+                            onClick={() => isToday && onToggleStatus(habit.id)}
+                            title={isToday ? (isCompleted ? "미완료로 표시" : "완료로 표시") : (isCompleted ? "완료됨" : "미완료")}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all
+                            ${isToday ? 'cursor-pointer' : ''}
+                            ${isCompleted ? 'bg-pink-500 text-white' : 'bg-gray-200'}
+                            ${isToday && !isCompleted ? 'hover:bg-pink-100' : ''}
+                            ${isToday && !isCompleted && 'ring-2 ring-pink-300 ring-inset'}
+                            `}
+                        >
+                            {isCompleted && (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </DayComponent>
+                    </div>
                     );
                 })}
                 </div>
-                <button
-                    onClick={() => onEdit(habit)}
-                    title="습관 수정하기"
-                    className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors duration-200"
-                    aria-label={`Edit habit: ${habit.title}`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" />
-                    </svg>
-                </button>
             </div>
             );
         })}
         </div>
+        {habits.length === 0 && (
+            <div className="text-center py-10 text-gray-500">
+                <p>표시할 습관이 없습니다.</p>
+                <p className="text-sm mt-1">메인 화면에서 습관을 추가해보세요.</p>
+            </div>
+        )}
     </div>
   );
 };
